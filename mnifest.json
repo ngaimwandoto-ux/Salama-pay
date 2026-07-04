@@ -1,0 +1,13 @@
+{
+  "name": "Salama Pay — Conditional Payments Simulator",
+  "short_name": "SalamaPay",
+  "description": "Simulator for Escrow Pay and Timed Release conditional payment flows.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0A1F1A",
+  "theme_color": "#0A1F1A",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

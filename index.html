@@ -379,4 +379,159 @@ function renderEscrow(form,detail,labels){
       <label>Amount (KSh)</label>
       <input id="f_amount" type="number" placeholder="e.g. 200" ${txn?'disabled':''} value="${txn?txn.amount:''}">
       <label>Description</label>
-      <input id="f_desc" placeholder="e.g. Food order" ${txn?'disabled':''} value="${txn&&txn.description?txn.d
+      <input id="f_desc" placeholder="e.g. Food order" ${txn?'disabled':''} value="${txn&&txn.description?txn.description:''}">
+      <button class="primary" ${txn?'disabled':''} onclick="onEscrowInitiate()">Pay into escrow</button>
+    `;
+  } else {
+    form.innerHTML=`
+      <h2><span class="eyebrow">Vendor</span> Confirm delivery</h2>
+      <label>Transaction ID</label>
+      <input id="f_txn" placeholder="e.g. E4F2A1" value="${txn?txn.txnId:''}">
+      <label>Customer's release code</label>
+      <input id="f_otp" placeholder="4-digit code" maxlength="4">
+      <button class="primary" onclick="onEscrowConfirm()">Enter code &amp; release</button>
+    `;
+  }
+
+  if(!txn){ detail.style.display='none'; return; }
+  detail.style.display='block';
+
+  const now=Date.now();
+  let timerHtml='';
+  if(txn.status==='FUNDS_HELD'||txn.status==='AWAITING_DELIVERY'){
+    timerHtml=`<div class="hint">Auto-release in <b style="color:var(--teal)">${fmt(txn.autoReleaseAt-now)}</b> if no action taken.</div>`;
+  }
+
+  detail.innerHTML=`
+    <h2><span class="eyebrow">${txn.txnId}</span> Status</h2>
+    <span class="status-pill ${statusClass(txn.status)}">${txn.status.replace(/_/g,' ')}</span>
+    ${role==='A' && (txn.status==='FUNDS_HELD'||txn.status==='AWAITING_DELIVERY') ? `<div class="otp-display">${txn.otp}</div><div class="hint">Share this code with the vendor only after you receive your order.</div>`:''}
+    ${timerHtml}
+    <div class="txn-detail">
+      <div class="kv"><span>Amount</span><b>KSh ${txn.amount}</b></div>
+      <div class="kv"><span>Vendor till</span><b>${txn.sellerTill}</b></div>
+      ${txn.dispute?`<div class="kv"><span>Dispute reason</span><b>${txn.dispute.reason}</b></div>`:''}
+    </div>
+    ${role==='A' && !['RELEASED','AUTO_RELEASED','DISPUTED','LOCKED'].includes(txn.status) ? `<button class="secondary" onclick="onEscrowDispute()">Raise a dispute — non-delivery</button>`:''}
+    ${['RELEASED','AUTO_RELEASED','DISPUTED','LOCKED'].includes(txn.status) ? `<button class="ghost" onclick="resetTxn()">Start new transaction</button>`:''}
+  `;
+}
+
+function renderTimed(form,detail,labels){
+  if(role==='A'){
+    const presets=[
+      ['10 min',600],['20 min',1200],['30 min',1800],
+      ['1 hr',3600],['2 hr',7200],['3 hr',10800],
+      ['6 hr',21600],['12 hr',43200],['24 hr',86400],['72 hr',259200]
+    ];
+    form.innerHTML=`
+      <h2><span class="eyebrow">Sender</span> Schedule a release</h2>
+      <label>Receiver phone</label>
+      <input id="f_recv" placeholder="e.g. 2547XXXXXXXX" ${txn?'disabled':''} value="${txn?txn.receiver:''}">
+      <label>Amount (KSh)</label>
+      <input id="f_amt" type="number" placeholder="e.g. 1000" ${txn?'disabled':''} value="${txn?txn.amount:''}">
+      <label>Label</label>
+      <input id="f_label" placeholder="e.g. August school fees" ${txn?'disabled':''} value="${txn&&txn.label?txn.label:''}">
+      <label>Release after</label>
+      <div class="preset-row" id="presetRow">
+        ${presets.map(([l,s])=>`<div class="preset" data-sec="${s}" onclick="pickPreset(this)">${l}</div>`).join('')}
+      </div>
+      <label>Revocable window (seconds, optional, demo uses short windows)</label>
+      <input id="f_revoke" type="number" placeholder="e.g. 60" ${txn?'disabled':''} value="">
+      <div class="hint">Demo note: real durations use minutes/hours as shown; this box lets you set a short revoke window in seconds so you can actually test revoking in a live demo.</div>
+      <button class="primary" ${txn?'disabled':''} onclick="onTimedInitiate()">Schedule transfer</button>
+    `;
+  } else {
+    form.innerHTML=`
+      <h2><span class="eyebrow">Receiver</span> Check status</h2>
+      <label>Transaction ID</label>
+      <input id="f_txn2" placeholder="e.g. T9B3C7" value="${txn?txn.txnId:''}">
+      <button class="primary" onclick="render()">Refresh status</button>
+      <div class="hint">Receivers can't release, revoke, or dispute — release is system-triggered only.</div>
+    `;
+  }
+
+  if(!txn){ detail.style.display='none'; return; }
+  detail.style.display='block';
+
+  const now=Date.now();
+  const total=txn.releaseAt-txn.createdAt;
+  const remaining=txn.releaseAt-now;
+  const pct=Math.max(0,Math.min(100,100-(remaining/total*100)));
+  const inRevokeWindow = txn.revocableUntil && now<txn.revocableUntil;
+
+  detail.innerHTML=`
+    <h2><span class="eyebrow">${txn.txnId}</span> Status</h2>
+    <span class="status-pill ${statusClass(txn.status)}">${txn.status.replace(/_/g,' ')}</span>
+    ${txn.status==='PENDING_RELEASE'?`
+      <div class="countdown">${fmt(remaining)}</div>
+      <div class="progress-track"><div class="progress-fill ${inRevokeWindow?'in-revoke-window':''}" style="width:${pct}%"></div></div>
+      <div class="hint">${inRevokeWindow?'Sender can still revoke — window closes soon.':'Revocable window has closed. Release is now unstoppable.'}</div>
+    `:''}
+    <div class="txn-detail">
+      <div class="kv"><span>Amount</span><b>KSh ${txn.amount}</b></div>
+      <div class="kv"><span>Receiver</span><b>${txn.receiver}</b></div>
+      ${txn.label?`<div class="kv"><span>Label</span><b>${txn.label}</b></div>`:''}
+    </div>
+    ${role==='A' && txn.status==='PENDING_RELEASE' ? `<button class="secondary" onclick="onTimedRevoke()">Revoke transfer</button>`:''}
+    ${['RELEASED','REVOKED'].includes(txn.status) ? `<button class="ghost" onclick="resetTxn()">Start new transaction</button>`:''}
+  `;
+}
+
+/* ---------------- handlers ---------------- */
+let selectedPresetSec=600;
+function pickPreset(el){
+  document.querySelectorAll('.preset').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  selectedPresetSec=Number(el.dataset.sec);
+}
+function onEscrowInitiate(){
+  const till=document.getElementById('f_till').value.trim();
+  const amount=Number(document.getElementById('f_amount').value);
+  const desc=document.getElementById('f_desc').value.trim();
+  if(!till||!amount){alert('Enter till number and amount.');return;}
+  escrowInitiate(till,amount,desc);
+  render();
+}
+function onEscrowConfirm(){
+  const otp=document.getElementById('f_otp').value.trim();
+  const r=escrowConfirm(otp);
+  if(!r.ok) alert(r.msg);
+  render();
+}
+function onEscrowDispute(){
+  const reason=prompt('Reason for dispute:','Non-delivery');
+  if(reason===null) return;
+  const r=escrowDispute(reason||'unspecified');
+  if(!r.ok) alert(r.msg);
+  render();
+}
+function onTimedInitiate(){
+  const recv=document.getElementById('f_recv').value.trim();
+  const amt=Number(document.getElementById('f_amt').value);
+  const label=document.getElementById('f_label').value.trim();
+  const revoke=Number(document.getElementById('f_revoke').value)||0;
+  if(!recv||!amt){alert('Enter receiver and amount.');return;}
+  if(revoke && revoke>=selectedPresetSec*0.8){alert("Revocable window can't exceed 80% of the total duration.");return;}
+  timedInitiate(recv,amt,selectedPresetSec,revoke||null,label);
+  render();
+}
+function onTimedRevoke(){
+  const r=timedRevoke();
+  if(!r.ok) alert(r.msg);
+  render();
+}
+function resetTxn(){
+  txn=null; clearInterval(tickHandle); render();
+}
+
+/* init */
+render();
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

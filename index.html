@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1F1A">
+<title>Salama Pay — Conditional Payments Simulator</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --ink:#0A1F1A;
+    --panel:#122E24;
+    --panel-2:#173A2E;
+    --amber:#E8A33D;
+    --teal:#3FA796;
+    --text:#EDEAE2;
+    --text-dim:#9FB3AC;
+    --danger:#D9634B;
+    --line:#24463A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;
+  }
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    padding:20px 20px 14px;
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:5;
+    background:var(--ink);
+  }
+  .brand{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:-0.02em;
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .brand .dot{color:var(--amber);}
+  .tagline{color:var(--text-dim); font-size:12.5px; margin-top:2px;}
+
+  .switcher{display:flex; gap:8px; margin-top:16px;}
+  .switch-btn{
+    flex:1; padding:10px 8px; border-radius:10px;
+    border:1px solid var(--line); background:var(--panel);
+    color:var(--text-dim); font-size:13px; font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer; transition:all .15s ease;
+    text-align:center;
+  }
+  .switch-btn.active{
+    background:var(--amber); color:var(--ink); border-color:var(--amber);
+  }
+
+  main{flex:1; padding:18px 20px 12px; display:flex; flex-direction:column; gap:16px;}
+
+  .role-row{display:flex; gap:8px;}
+  .role-btn{
+    flex:1; padding:8px; border-radius:8px; border:1px solid var(--line);
+    background:transparent; color:var(--text-dim); font-size:12px;
+    cursor:pointer; font-family:'JetBrains Mono',monospace;
+  }
+  .role-btn.active{border-color:var(--teal); color:var(--teal); background:rgba(63,167,150,0.1);}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px;
+  }
+  .card h2{
+    font-family:'Space Grotesk',sans-serif; font-size:15px; margin:0 0 14px;
+    color:var(--text); display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--amber);
+    letter-spacing:0.08em; text-transform:uppercase;
+  }
+
+  label{display:block; font-size:12px; color:var(--text-dim); margin:12px 0 5px;}
+  label:first-child{margin-top:0;}
+  input, select{
+    width:100%; padding:11px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--ink); color:var(--text);
+    font-size:14.5px; font-family:'Inter',sans-serif;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--teal);}
+  input::placeholder{color:#5c7369;}
+
+  .preset-row{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+  .preset{
+    padding:6px 10px; border-radius:7px; border:1px solid var(--line);
+    background:var(--ink); color:var(--text-dim); font-size:12px; cursor:pointer;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .preset.active{border-color:var(--amber); color:var(--amber);}
+
+  button.primary{
+    width:100%; margin-top:16px; padding:13px; border:none; border-radius:10px;
+    background:var(--amber); color:var(--ink); font-weight:700; font-size:14.5px;
+    font-family:'Space Grotesk',sans-serif; cursor:pointer;
+  }
+  button.primary:disabled{opacity:0.4; cursor:not-allowed;}
+  button.secondary{
+    width:100%; margin-top:8px; padding:12px; border-radius:10px;
+    border:1px solid var(--danger); background:transparent; color:var(--danger);
+    font-weight:600; font-size:13.5px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  button.ghost{
+    width:100%; margin-top:8px; padding:11px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--text-dim);
+    font-size:13px; cursor:pointer;
+  }
+  .hint{font-size:11.5px; color:var(--text-dim); margin-top:6px; line-height:1.4;}
+
+  .status-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:20px; font-size:11.5px;
+    font-family:'JetBrains Mono',monospace; font-weight:500;
+    border:1px solid var(--line);
+  }
+  .status-pill.held{color:var(--amber); border-color:var(--amber);}
+  .status-pill.released{color:var(--teal); border-color:var(--teal);}
+  .status-pill.disputed, .status-pill.revoked{color:var(--danger); border-color:var(--danger);}
+
+  .txn-detail{margin-top:14px; padding-top:14px; border-top:1px dashed var(--line);}
+  .kv{display:flex; justify-content:space-between; font-size:13px; padding:4px 0; color:var(--text-dim);}
+  .kv b{color:var(--text); font-weight:500; font-family:'JetBrains Mono',monospace;}
+  .otp-display{
+    font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700;
+    letter-spacing:0.12em; color:var(--amber); text-align:center;
+    padding:14px; background:var(--ink); border-radius:10px; margin:12px 0;
+    border:1px dashed var(--amber);
+  }
+  .countdown{
+    font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:700;
+    text-align:center; padding:12px; color:var(--teal);
+  }
+  .progress-track{height:5px; background:var(--ink); border-radius:3px; overflow:hidden; margin-top:8px;}
+  .progress-fill{height:100%; background:var(--teal); transition:width 1s linear;}
+  .progress-fill.in-revoke-window{background:var(--danger);}
+
+  /* Signature element: ledger tape */
+  .ledger{
+    background:#081712; border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px 16px; margin-top:4px;
+  }
+  .ledger-head{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim);
+    letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;
+  }
+  .ledger-tape{
+    max-height:180px; overflow-y:auto; display:flex; flex-direction:column-reverse;
+    gap:0;
+  }
+  .tape-line{
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--text-dim);
+    padding:5px 0; border-bottom:1px dotted var(--line);
+    display:flex; justify-content:space-between; gap:10px;
+    animation:print .25s ease;
+  }
+  .tape-line b{color:var(--amber); font-weight:500;}
+  @keyframes print{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);}}
+
+  .empty{color:var(--text-dim); font-size:12.5px; text-align:center; padding:20px 0;}
+  footer{padding:14px 20px 22px; text-align:center; color:var(--text-dim); font-size:10.5px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">Salama<span class="dot">·</span>Pay</div>
+    <div class="tagline">Conditional payments simulator — demo mode</div>
+    <div class="switcher">
+      <button class="switch-btn active" id="tabEscrow" onclick="setFlow('escrow')">Escrow Pay</button>
+      <button class="switch-btn" id="tabTimed" onclick="setFlow('timed')">Timed Release</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="role-row">
+      <button class="role-btn active" id="roleA" onclick="setRole('A')"></button>
+      <button class="role-btn" id="roleB" onclick="setRole('B')"></button>
+    </div>
+
+    <div id="formCard" class="card"></div>
+    <div id="detailCard" class="card" style="display:none;"></div>
+
+    <div class="ledger">
+      <div class="ledger-head"><span>Audit log</span><span id="ledgerTxn">—</span></div>
+      <div class="ledger-tape" id="ledgerTape">
+        <div class="tape-line" style="opacity:.5;">Awaiting first transaction…</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>In-memory demo · no real money moves · state resets on reload</footer>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------
+   State machine core — mirrors server.js exactly, run client-side.
+--------------------------------------------------------------------- */
+let flow = 'escrow';     // 'escrow' | 'timed'
+let role = 'A';          // Escrow: A=Buyer, B=Vendor | Timed: A=Sender, B=Receiver
+let txn = null;
+let tickHandle = null;
+
+const ledgerEl = document.getElementById('ledgerTape');
+const ledgerTxnEl = document.getElementById('ledgerTxn');
+
+function log(msg){
+  if(ledgerEl.children.length===1 && ledgerEl.children[0].textContent.includes('Awaiting')){
+    ledgerEl.innerHTML='';
+  }
+  const line=document.createElement('div');
+  line.className='tape-line';
+  const time=new Date().toLocaleTimeString('en-GB',{hour12:false});
+  line.innerHTML=`<span>${msg}</span><b>${time}</b>`;
+  ledgerEl.prepend(line);
+}
+
+function genOtp(){ return String(Math.floor(1000+Math.random()*9000)); }
+function newTxnId(prefix){ return prefix + Math.random().toString(16).slice(2,8).toUpperCase(); }
+function fmt(ms){
+  if(ms<0) ms=0;
+  const s=Math.floor(ms/1000);
+  const h=String(Math.floor(s/3600)).padStart(2,'0');
+  const m=String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sec=String(s%60).padStart(2,'0');
+  return `${h}:${m}:${sec}`;
+}
+
+/* ---------------- role/flow switching ---------------- */
+function setFlow(f){
+  flow=f;
+  document.getElementById('tabEscrow').classList.toggle('active', f==='escrow');
+  document.getElementById('tabTimed').classList.toggle('active', f==='timed');
+  role='A';
+  txn=null;
+  clearInterval(tickHandle);
+  render();
+}
+function setRole(r){
+  role=r;
+  render();
+}
+
+function roleLabels(){
+  return flow==='escrow'
+    ? {A:'Buyer', B:'Vendor'}
+    : {A:'Sender', B:'Receiver'};
+}
+
+/* ---------------- ESCROW PAY logic ---------------- */
+function escrowInitiate(sellerTill, amount, description){
+  const otp=genOtp();
+  txn={
+    type:'escrow', txnId:newTxnId('E'), sellerTill, amount, description,
+    status:'FUNDS_HELD', otp, otpAttempts:0, dispute:null,
+    createdAt:Date.now(), autoReleaseAt:Date.now()+30*60*1000, // 30 min per spec
+    pendingDeliveryAt:Date.now()+10*60*1000,
+  };
+  log(`<b>INITIATED</b> KSh ${amount} held for ${sellerTill}`);
+  startEscrowClock();
+}
+function escrowConfirm(otpInput){
+  if(!txn||txn.status!=='FUNDS_HELD' && txn.status!=='AWAITING_DELIVERY'){return {ok:false,msg:'No active escrow to confirm.'};}
+  if(otpInput!==txn.otp){
+    txn.otpAttempts++;
+    if(txn.otpAttempts>3){ txn.status='LOCKED'; log('<b>LOCKED</b> too many invalid OTP attempts'); return {ok:false,msg:'Locked: too many invalid attempts.'};}
+    log(`Invalid OTP attempt (${txn.otpAttempts}/3)`);
+    return {ok:false,msg:'Invalid OTP.'};
+  }
+  txn.status='RELEASED';
+  log('<b>RELEASED</b> funds sent to vendor');
+  clearInterval(tickHandle);
+  return {ok:true};
+}
+function escrowDispute(reason){
+  if(!txn || ['RELEASED','AUTO_RELEASED'].includes(txn.status)) return {ok:false,msg:'Cannot dispute — already released.'};
+  txn.status='DISPUTED';
+  txn.dispute={reason};
+  log(`<b>DISPUTED</b> ${reason}`);
+  return {ok:true};
+}
+function startEscrowClock(){
+  clearInterval(tickHandle);
+  tickHandle=setInterval(()=>{
+    if(!txn||txn.type!=='escrow') return;
+    const now=Date.now();
+    if(txn.status==='FUNDS_HELD' && now>=txn.pendingDeliveryAt){
+      txn.status='AWAITING_DELIVERY';
+      log('<b>AWAITING_DELIVERY</b> prompt sent: "Did you receive it?"');
+    }
+    if(!['RELEASED','DISPUTED','LOCKED'].includes(txn.status) && now>=txn.autoReleaseAt){
+      txn.status='AUTO_RELEASED';
+      log('<b>AUTO_RELEASED</b> timeout, no dispute raised');
+      clearInterval(tickHandle);
+    }
+    render();
+  },1000);
+}
+
+/* ---------------- TIMED RELEASE logic ---------------- */
+function timedInitiate(receiver, amount, durationSec, revocableSec, label){
+  txn={
+    type:'timed', txnId:newTxnId('T'), receiver, amount, label,
+    status:'PENDING_RELEASE', createdAt:Date.now(),
+    releaseAt:Date.now()+durationSec*1000,
+    revocableUntil: revocableSec ? Date.now()+revocableSec*1000 : null,
+  };
+  log(`<b>INITIATED</b> KSh ${amount} scheduled for ${receiver}`);
+  startTimedClock();
+}
+function timedRevoke(){
+  if(!txn||txn.status!=='PENDING_RELEASE') return {ok:false,msg:'Nothing to revoke.'};
+  if(!txn.revocableUntil || Date.now()>txn.revocableUntil) return {ok:false,msg:'Revocable window has passed.'};
+  txn.status='REVOKED';
+  log('<b>REVOKED</b> funds returned to sender');
+  clearInterval(tickHandle);
+  return {ok:true};
+}
+function startTimedClock(){
+  clearInterval(tickHandle);
+  tickHandle=setInterval(()=>{
+    if(!txn||txn.type!=='timed') return;
+    if(txn.status==='PENDING_RELEASE' && Date.now()>=txn.releaseAt){
+      txn.status='RELEASED';
+      log('<b>RELEASED</b> duration elapsed, funds sent');
+      clearInterval(tickHandle);
+    }
+    render();
+  },1000);
+}
+
+/* ---------------- rendering ---------------- */
+function statusClass(s){
+  if(['RELEASED','AUTO_RELEASED'].includes(s)) return 'released';
+  if(['DISPUTED','REVOKED','LOCKED'].includes(s)) return 'disputed';
+  return 'held';
+}
+
+function render(){
+  const labels=roleLabels();
+  document.getElementById('roleA').textContent=labels.A;
+  document.getElementById('roleB').textContent=labels.B;
+  document.getElementById('roleA').classList.toggle('active', role==='A');
+  document.getElementById('roleB').classList.toggle('active', role==='B');
+  ledgerTxnEl.textContent = txn ? txn.txnId : '—';
+
+  const form=document.getElementById('formCard');
+  const detail=document.getElementById('detailCard');
+
+  if(flow==='escrow') renderEscrow(form,detail,labels);
+  else renderTimed(form,detail,labels);
+}
+
+function renderEscrow(form,detail,labels){
+  if(role==='A'){
+    form.innerHTML=`
+      <h2><span class="eyebrow">Step 1</span> Pay with escrow</h2>
+      <label>Vendor till number</label>
+      <input id="f_till" placeholder="e.g. 445566" ${txn?'disabled':''} value="${txn?txn.sellerTill:''}">
+      <label>Amount (KSh)</label>
+      <input id="f_amount" type="number" placeholder="e.g. 200" ${txn?'disabled':''} value="${txn?txn.amount:''}">
+      <label>Description</label>
+      <input id="f_desc" placeholder="e.g. Food order" ${txn?'disabled':''} value="${txn&&txn.description?txn.d

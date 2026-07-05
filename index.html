@@ -312,7 +312,7 @@ function startEscrowClock(){
       log('<b>AUTO_RELEASED</b> timeout, no dispute raised');
       clearInterval(tickHandle);
     }
-    render();
+    renderTick();
   },6000);
 }
 
@@ -344,7 +344,7 @@ function startTimedClock(){
       log('<b>RELEASED</b> duration elapsed, funds sent');
       clearInterval(tickHandle);
     }
-    render();
+    renderTick();
   },6000);
 }
 

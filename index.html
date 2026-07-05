@@ -364,13 +364,26 @@ function render(){
   ledgerTxnEl.textContent = txn ? txn.txnId : '—';
 
   const form=document.getElementById('formCard');
-  const detail=document.getElementById('detailCard');
+  if(flow==='escrow') renderEscrowForm(form); else renderTimedForm(form);
 
-  if(flow==='escrow') renderEscrow(form,detail,labels);
-  else renderTimed(form,detail,labels);
+  renderDetail();
 }
 
-function renderEscrow(form,detail,labels){
+// Lightweight tick: rebuilds ONLY the status/timer box every second.
+// Never touches formCard, so inputs the user is typing into are untouched.
+function renderTick(){
+  ledgerTxnEl.textContent = txn ? txn.txnId : '—';
+  renderDetail();
+}
+
+function renderDetail(){
+  const detail=document.getElementById('detailCard');
+  if(!txn){ detail.style.display='none'; return; }
+  detail.style.display='block';
+  if(txn.type==='escrow') renderEscrowDetail(detail); else renderTimedDetail(detail);
+}
+
+function renderEscrowForm(form){
   if(role==='A'){
     form.innerHTML=`
       <h2><span class="eyebrow">Step 1</span> Pay with escrow</h2>
@@ -388,14 +401,13 @@ function renderEscrow(form,detail,labels){
       <label>Transaction ID</label>
       <input id="f_txn" placeholder="e.g. E4F2A1" value="${txn?txn.txnId:''}">
       <label>Customer's release code</label>
-      <input id="f_otp" placeholder="4-digit code" maxlength="4">
+      <input id="f_otp" placeholder="4-digit code" maxlength="4" inputmode="numeric">
       <button class="primary" onclick="onEscrowConfirm()">Enter code &amp; release</button>
     `;
   }
+}
 
-  if(!txn){ detail.style.display='none'; return; }
-  detail.style.display='block';
-
+function renderEscrowDetail(detail){
   const now=Date.now();
   let timerHtml='';
   if(txn.status==='FUNDS_HELD'||txn.status==='AWAITING_DELIVERY'){
@@ -417,7 +429,7 @@ function renderEscrow(form,detail,labels){
   `;
 }
 
-function renderTimed(form,detail,labels){
+function renderTimedForm(form){
   if(role==='A'){
     const presets=[
       ['10 min',600],['20 min',1200],['30 min',1800],
@@ -450,10 +462,9 @@ function renderTimed(form,detail,labels){
       <div class="hint">Receivers can't release, revoke, or dispute — release is system-triggered only.</div>
     `;
   }
+}
 
-  if(!txn){ detail.style.display='none'; return; }
-  detail.style.display='block';
-
+function renderTimedDetail(detail){
   const now=Date.now();
   const total=txn.releaseAt-txn.createdAt;
   const remaining=txn.releaseAt-now;
@@ -479,7 +490,7 @@ function renderTimed(form,detail,labels){
 }
 
 /* ---------------- handlers ---------------- */
-let selectedPresetSec=6000;
+let selectedPresetSec=600;
 function pickPreset(el){
   document.querySelectorAll('.preset').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
